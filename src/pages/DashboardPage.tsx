@@ -1,57 +1,69 @@
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { fetchProjects, addTimeEntry, fetchUserEntries } from '../services/sheets';
+import TimeEntryForm from '../components/TimeEntryForm';
+import EntriesTable from '../components/EntriesTable';
+import WeekSummary from '../components/WeekSummary';
+import type { TimeEntry } from '../types';
+import './DashboardPage.css';
 
 function DashboardPage() {
   const { user } = useAuth();
+  const [projects, setProjects] = useState<string[]>([]);
+  const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const testFetchProjects = async () => {
-    try {
-      const projects = await fetchProjects();
-      console.log('Projects from Google Sheets:', projects);
-    } catch (err) {
-      console.error('Failed to fetch projects:', err);
-    }
-  };
-
-  const testAddEntry = async () => {
+  const loadData = useCallback(async () => {
     if (!user) return;
     try {
-      await addTimeEntry({
-        date: new Date().toISOString().split('T')[0],
-        email: user.email,
-        project: 'Test Project',
-        hours: 0.5,
-        submittedAt: new Date().toISOString(),
-      });
-      console.log('Dummy time entry added successfully');
+      setError('');
+      const [projectList, userEntries] = await Promise.all([
+        fetchProjects(),
+        fetchUserEntries(user.email),
+      ]);
+      setProjects(projectList);
+      setEntries(userEntries);
     } catch (err) {
-      console.error('Failed to add entry:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load data.');
+    } finally {
+      setLoading(false);
     }
+  }, [user]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleSubmit = async (entry: Omit<TimeEntry, 'submittedAt'>) => {
+    await addTimeEntry({
+      ...entry,
+      submittedAt: new Date().toISOString(),
+    });
+    await loadData();
   };
 
-  const testFetchEntries = async () => {
-    if (!user) return;
-    try {
-      const entries = await fetchUserEntries(user.email);
-      console.log('User entries from Google Sheets:', entries);
-    } catch (err) {
-      console.error('Failed to fetch entries:', err);
-    }
-  };
+  if (loading) {
+    return <p>Loading...</p>;
+  }
 
   return (
-    <div>
+    <div className="dashboard">
       <h1>Employee Dashboard</h1>
-      <p>Logged in as: {user?.email}</p>
-      <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-        <button onClick={testFetchProjects}>Test: Fetch Projects</button>
-        <button onClick={testAddEntry}>Test: Add Dummy Entry</button>
-        <button onClick={testFetchEntries}>Test: Fetch My Entries</button>
-      </div>
-      <p style={{ marginTop: '1rem', color: '#666' }}>
-        Open browser console to see results. These test buttons will be removed
-        once the time entry UI is built.
-      </p>
+      {error && <p className="dashboard-error">{error}</p>}
+
+      {user && (
+        <>
+          <TimeEntryForm
+            projects={projects}
+            entries={entries}
+            userEmail={user.email}
+            onSubmit={handleSubmit}
+          />
+          <WeekSummary entries={entries} />
+          <EntriesTable entries={entries} />
+        </>
+      )}
     </div>
   );
 }

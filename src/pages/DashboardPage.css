@@ -1,0 +1,13 @@
+.dashboard {
+  max-width: 700px;
+}
+
+.dashboard h1 {
+  margin-bottom: 1.25rem;
+}
+
+.dashboard-error {
+  color: #d32f2f;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
