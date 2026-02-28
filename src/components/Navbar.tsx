@@ -1,17 +1,28 @@
 import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import './Navbar.css';
 
 function Navbar() {
-  // Placeholder: will show role-appropriate links after auth is implemented
+  const { user, logout } = useAuth();
+
   return (
     <nav className="navbar">
       <div className="navbar-brand">
-        <Link to="/dashboard">Time Tracker</Link>
+        <Link to={user?.role === 'admin' ? '/admin' : '/dashboard'}>
+          Time Tracker
+        </Link>
       </div>
       <div className="navbar-links">
-        <Link to="/dashboard">Dashboard</Link>
-        <Link to="/admin">Admin</Link>
-        <Link to="/login">Login</Link>
+        {user?.role === 'admin' && <Link to="/admin">Admin</Link>}
+        {user?.role === 'employee' && <Link to="/dashboard">Dashboard</Link>}
+        {user && (
+          <>
+            <span className="navbar-user">{user.name}</span>
+            <button className="navbar-logout" onClick={logout}>
+              Logout
+            </button>
+          </>
+        )}
       </div>
     </nav>
   );
