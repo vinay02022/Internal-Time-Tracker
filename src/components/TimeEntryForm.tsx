@@ -1,0 +1,133 @@
+import { useState } from 'react';
+import { getTodayStr } from '../utils/date';
+import type { TimeEntry } from '../types';
+import './TimeEntryForm.css';
+
+interface TimeEntryFormProps {
+  projects: string[];
+  entries: TimeEntry[];
+  userEmail: string;
+  onSubmit: (entry: Omit<TimeEntry, 'submittedAt'>) => Promise<void>;
+}
+
+function TimeEntryForm({
+  projects,
+  entries,
+  userEmail,
+  onSubmit,
+}: TimeEntryFormProps) {
+  const today = getTodayStr();
+  const [date, setDate] = useState(today);
+  const [project, setProject] = useState('');
+  const [hours, setHours] = useState<0.5 | 1>(0.5);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const getDayTotal = (targetDate: string): number => {
+    return entries
+      .filter((e) => e.date === targetDate && e.email === userEmail)
+      .reduce((sum, e) => sum + e.hours, 0);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+
+    if (!project) {
+      setError('Please select a project.');
+      return;
+    }
+
+    if (!projects.includes(project)) {
+      setError('Selected project is not in the master list.');
+      return;
+    }
+
+    const dayTotal = getDayTotal(date);
+    if (dayTotal + hours > 1) {
+      const remaining = 1 - dayTotal;
+      setError(
+        remaining <= 0
+          ? `You have already logged 1 day for ${date}.`
+          : `You can only log ${remaining} more hours for ${date}. Total cannot exceed 1 day.`
+      );
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await onSubmit({ date, email: userEmail, project, hours });
+      setSuccess('Entry submitted successfully.');
+      setProject('');
+      setHours(0.5);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Submission failed.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const dayTotal = getDayTotal(date);
+
+  return (
+    <form className="entry-form" onSubmit={handleSubmit}>
+      <h2>Log Time</h2>
+
+      <div className="form-row">
+        <label htmlFor="date">Date</label>
+        <input
+          id="date"
+          type="date"
+          value={date}
+          max={today}
+          onChange={(e) => setDate(e.target.value)}
+        />
+      </div>
+
+      <div className="form-row">
+        <label htmlFor="project">Project</label>
+        <select
+          id="project"
+          value={project}
+          onChange={(e) => setProject(e.target.value)}
+        >
+          <option value="">-- Select Project --</option>
+          {projects.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="form-row">
+        <label htmlFor="hours">Hours</label>
+        <select
+          id="hours"
+          value={hours}
+          onChange={(e) => setHours(parseFloat(e.target.value) as 0.5 | 1)}
+        >
+          <option value={0.5}>0.5</option>
+          <option value={1}>1</option>
+        </select>
+      </div>
+
+      <div className="form-row">
+        <span className="day-total">
+          Logged for {date}: {dayTotal} / 1 day
+        </span>
+      </div>
+
+      <button type="submit" disabled={submitting}>
+        {submitting ? 'Submitting...' : 'Submit Entry'}
+      </button>
+
+      {error && <p className="form-error">{error}</p>}
+      {success && <p className="form-success">{success}</p>}
+    </form>
+  );
+}
+
+export default TimeEntryForm;
