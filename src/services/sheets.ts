@@ -4,10 +4,14 @@ import type { TimeEntry } from '../types';
 const SHEET_ID = import.meta.env.VITE_GOOGLE_SHEET_ID;
 const BASE_URL = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}`;
 
-// Sheet tab names
+// Sheet tab names and ranges
+// Columns: EntryID | UserEmail | Project | Date | TimeValue | Timestamp
 const PROJECTS_RANGE = 'Projects!A:A';
-const TIME_ENTRIES_SHEET = 'TimeEntries';
-const TIME_ENTRIES_RANGE = `${TIME_ENTRIES_SHEET}!A:E`;
+const TIME_ENTRIES_RANGE = 'TimeEntries!A:F';
+
+function generateId(): string {
+  return crypto.randomUUID();
+}
 
 function getHeaders(): HeadersInit {
   const token = getGoogleAccessToken();
@@ -17,6 +21,17 @@ function getHeaders(): HeadersInit {
   return {
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
+  };
+}
+
+function parseEntryRow(row: string[]): TimeEntry {
+  return {
+    entryId: row[0] || '',
+    email: row[1] || '',
+    project: row[2] || '',
+    date: row[3] || '',
+    hours: parseFloat(row[4]) as 0.5 | 1,
+    timestamp: row[5] || '',
   };
 }
 
@@ -36,19 +51,27 @@ export async function fetchProjects(): Promise<string[]> {
   const data = await res.json();
   const rows: string[][] = data.values || [];
 
-  // Skip header row, return flat list of project names
   return rows.slice(1).map((row) => row[0]).filter(Boolean);
 }
 
 /**
  * Append a time entry row to the TimeEntries sheet.
- * Columns: Date | Email | Project | Hours | SubmittedAt
+ * Columns: EntryID | UserEmail | Project | Date | TimeValue | Timestamp
  */
-export async function addTimeEntry(entry: TimeEntry): Promise<void> {
+export async function addTimeEntry(
+  entry: Omit<TimeEntry, 'entryId' | 'timestamp'>
+): Promise<void> {
   const url = `${BASE_URL}/values/${encodeURIComponent(TIME_ENTRIES_RANGE)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`;
   const body = {
     values: [
-      [entry.date, entry.email, entry.project, entry.hours, entry.submittedAt],
+      [
+        generateId(),
+        entry.email,
+        entry.project,
+        entry.date,
+        entry.hours,
+        new Date().toISOString(),
+      ],
     ],
   };
 
@@ -80,17 +103,10 @@ export async function fetchUserEntries(email: string): Promise<TimeEntry[]> {
   const data = await res.json();
   const rows: string[][] = data.values || [];
 
-  // Skip header row, filter by email
   return rows
     .slice(1)
     .filter((row) => row[1] === email)
-    .map((row) => ({
-      date: row[0],
-      email: row[1],
-      project: row[2],
-      hours: parseFloat(row[3]) as 0.5 | 1,
-      submittedAt: row[4],
-    }))
+    .map(parseEntryRow)
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -111,12 +127,6 @@ export async function fetchAllEntries(): Promise<TimeEntry[]> {
 
   return rows
     .slice(1)
-    .map((row) => ({
-      date: row[0],
-      email: row[1],
-      project: row[2],
-      hours: parseFloat(row[3]) as 0.5 | 1,
-      submittedAt: row[4],
-    }))
+    .map(parseEntryRow)
     .sort((a, b) => b.date.localeCompare(a.date));
 }

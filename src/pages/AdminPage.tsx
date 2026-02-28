@@ -76,13 +76,13 @@ function AdminPage() {
   }, [filtered]);
 
   // 7-day employee summary (unfiltered, always shows last 7 days)
-  const last7Days = getLastNDays(7);
   const weekSummaries = useMemo(() => {
+    const days = getLastNDays(7);
     return employees.map((email) => {
       const userEntries = entries.filter(
-        (e) => e.email === email && last7Days.includes(e.date)
+        (e) => e.email === email && days.includes(e.date)
       );
-      const daysLogged = last7Days.filter((date) => {
+      const daysLogged = days.filter((date) => {
         const dayTotal = userEntries
           .filter((e) => e.date === date)
           .reduce((sum, e) => sum + e.hours, 0);
@@ -91,7 +91,7 @@ function AdminPage() {
       const totalHours = userEntries.reduce((sum, e) => sum + e.hours, 0);
       return { email, daysLogged, totalHours };
     });
-  }, [entries, employees, last7Days]);
+  }, [entries, employees]);
 
   const clearFilters = () => {
     setDateFrom('');

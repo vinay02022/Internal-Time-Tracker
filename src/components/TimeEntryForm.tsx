@@ -7,7 +7,7 @@ interface TimeEntryFormProps {
   projects: string[];
   entries: TimeEntry[];
   userEmail: string;
-  onSubmit: (entry: Omit<TimeEntry, 'submittedAt'>) => Promise<void>;
+  onSubmit: (entry: Omit<TimeEntry, 'entryId' | 'timestamp'>) => Promise<void>;
 }
 
 function TimeEntryForm({

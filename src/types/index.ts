@@ -8,9 +8,10 @@ export interface User {
 }
 
 export interface TimeEntry {
-  date: string;       // YYYY-MM-DD
+  entryId: string;    // UUID
   email: string;
   project: string;
+  date: string;       // YYYY-MM-DD
   hours: 0.5 | 1;
-  submittedAt: string; // ISO timestamp
+  timestamp: string;  // ISO timestamp
 }

@@ -35,11 +35,10 @@ function DashboardPage() {
     loadData();
   }, [loadData]);
 
-  const handleSubmit = async (entry: Omit<TimeEntry, 'submittedAt'>) => {
-    await addTimeEntry({
-      ...entry,
-      submittedAt: new Date().toISOString(),
-    });
+  const handleSubmit = async (
+    entry: Omit<TimeEntry, 'entryId' | 'timestamp'>
+  ) => {
+    await addTimeEntry(entry);
     await loadData();
   };
 
