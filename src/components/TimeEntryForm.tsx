@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { getTodayStr } from '../utils/date';
 import type { TimeEntry } from '../types';
 import './TimeEntryForm.css';
@@ -19,10 +19,34 @@ function TimeEntryForm({
   const today = getTodayStr();
   const [date, setDate] = useState(today);
   const [project, setProject] = useState('');
+  const [projectQuery, setProjectQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [hours, setHours] = useState<0.5 | 1>(0.5);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  const filteredProjects = projects.filter((p) =>
+    p.toLowerCase().includes(projectQuery.toLowerCase())
+  );
+
+  const handleProjectInput = (value: string) => {
+    setProjectQuery(value);
+    setProject('');
+    setShowSuggestions(true);
+  };
+
+  const selectProject = (p: string) => {
+    setProject(p);
+    setProjectQuery(p);
+    setShowSuggestions(false);
+  };
+
+  const handleProjectBlur = () => {
+    // Delay to allow click on suggestion
+    setTimeout(() => setShowSuggestions(false), 150);
+  };
 
   const getDayTotal = (targetDate: string): number => {
     return entries
@@ -61,6 +85,7 @@ function TimeEntryForm({
       await onSubmit({ date, email: userEmail, project, hours });
       setSuccess('Entry submitted successfully.');
       setProject('');
+      setProjectQuery('');
       setHours(0.5);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Submission failed.');
@@ -86,20 +111,48 @@ function TimeEntryForm({
         />
       </div>
 
-      <div className="form-row">
+      <div className="form-row project-field">
         <label htmlFor="project">Project</label>
-        <select
+        <input
           id="project"
-          value={project}
-          onChange={(e) => setProject(e.target.value)}
-        >
-          <option value="">-- Select Project --</option>
-          {projects.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+          type="text"
+          value={projectQuery}
+          placeholder="Type to search projects..."
+          autoComplete="off"
+          onChange={(e) => handleProjectInput(e.target.value)}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={handleProjectBlur}
+        />
+        {showSuggestions && projectQuery.length === 0 && (
+          <div className="suggestions" ref={suggestionsRef}>
+            {projects.map((p) => (
+              <div
+                key={p}
+                className="suggestion-item"
+                onMouseDown={() => selectProject(p)}
+              >
+                {p}
+              </div>
+            ))}
+          </div>
+        )}
+        {showSuggestions && projectQuery.length > 0 && !project && (
+          <div className="suggestions" ref={suggestionsRef}>
+            {filteredProjects.length === 0 ? (
+              <div className="suggestion-empty">No matching projects</div>
+            ) : (
+              filteredProjects.map((p) => (
+                <div
+                  key={p}
+                  className="suggestion-item"
+                  onMouseDown={() => selectProject(p)}
+                >
+                  {p}
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       <div className="form-row">
